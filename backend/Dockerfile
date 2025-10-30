@@ -10,13 +10,19 @@ WORKDIR /app
 # Copy package files
 COPY package.json pnpm-lock.yaml* ./
 
-# Install dependencies
+# Install dependencies (including devDependencies for development)
 RUN pnpm install --frozen-lockfile
 
 # Copy source code
 COPY . .
 
-# Build the application
+# Development stage (don't build here, let the dev command handle it)
+FROM base AS development
+EXPOSE 8080
+CMD ["pnpm", "run", "dev"]
+
+# Build stage
+FROM base AS build
 RUN pnpm run build
 
 # Production stage
@@ -38,8 +44,8 @@ COPY package.json pnpm-lock.yaml* ./
 # Install only production dependencies
 RUN pnpm install --prod --frozen-lockfile
 
-# Copy built application from base stage
-COPY --from=base --chown=nodejs:nodejs /app/dist ./dist
+# Copy built application from build stage
+COPY --from=build --chown=nodejs:nodejs /app/dist ./dist
 
 # Switch to non-root user
 USER nodejs

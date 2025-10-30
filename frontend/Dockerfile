@@ -10,13 +10,19 @@ WORKDIR /app
 # Copy package files
 COPY package.json pnpm-lock.yaml* ./
 
-# Install dependencies
+# Install dependencies (including devDependencies for development)
 RUN pnpm install --frozen-lockfile
 
 # Copy source code
 COPY . .
 
-# Build the application
+# Development stage (don't build here, let the dev command handle it)
+FROM base AS development
+EXPOSE 3000
+CMD ["pnpm", "run", "dev"]
+
+# Build stage
+FROM base AS build
 RUN pnpm run build
 
 # Production stage with nginx
@@ -25,8 +31,8 @@ FROM nginx:alpine AS production
 # Copy custom nginx config
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
-# Copy built application
-COPY --from=base /app/dist /usr/share/nginx/html
+# Copy built application from build stage
+COPY --from=build /app/dist /usr/share/nginx/html
 
 # Add non-root user
 RUN addgroup -g 1001 -S nginx
